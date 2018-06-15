@@ -1,0 +1,18 @@
+ansible_connection: ssh
+ansible_ssh_user: 
+ansible_ssh_pass: 
+
+user_pihole: "pihole"
+group_pihole: "pihole"
+
+pihole_path: "/opt/pihole"
+pihole_config_path: "/etc/pihole"
+
+network_interface: eth0
+ipv4_address: "{{ hostvars[inventory_hostname]['ansible_' + network_interface]['ipv4']['address'] }}"
+
+# Cloudflare DNS
+dns_servers:
+  - "1.1.1.1"
+  - "1.0.0.1"
+  

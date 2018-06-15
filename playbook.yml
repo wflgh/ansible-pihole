@@ -1,0 +1,9 @@
+#!/usr/bin/env ansible-playbook -i hosts --become playbook.yml --extra-vars "ansible_ssh_user= ansible_ssh_pass="
+---
+
+- name: Configure Pi-Hole on raspberry pi
+  hosts: pihole
+  roles:
+    - pihole
+  remote_user: pi
+  become: yes

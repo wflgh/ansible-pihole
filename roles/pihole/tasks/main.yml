@@ -1,0 +1,87 @@
+---
+
+- name: Set hostname to 'pihole'
+  hostname:
+    name: pihole
+
+- name: Create pihole group
+  become: True
+  group:
+    name="{{ group_pihole }}"
+    state=present
+
+- name: Create pihole user
+  become: True
+  user:
+    name="{{ user_pihole }}"
+    group="{{ group_pihole }}"
+    groups="{{ group_pihole }}"
+    comment="ad filtering DNS proxy"
+    system=True
+    shell="/usr/sbin/nologin"
+
+- name: Update APT package cache
+  apt:
+    update_cache: yes
+    upgrade: safe
+
+- name: Download pihole installer
+  get_url:
+      url: https://install.pi-hole.net
+      dest: ~/install-pihole.sh
+      mode: 0740
+
+- name: Create pihole config directory
+  become: True
+  file:
+    name="{{ pihole_config_path }}"
+    state=directory
+    owner="{{ user_pihole }}"
+    group="{{ group_pihole }}"
+    mode=0755
+
+- name: Create pihole configuration
+  become: True
+  template:
+    src="setupVars.conf.j2"
+    dest="{{ pihole_config_path }}/setupVars.conf"
+    owner=root
+    group=root
+    mode=0644
+
+- name: Set default DNS
+  become: True
+  template:
+    src="resolv.conf.j2"
+    dest="/etc/resolv.conf"
+    owner=root
+    group=root
+    mode=0644
+
+- name: Install pihole
+  shell: "~/install-pihole.sh --unattended"
+  register: dbg_install_pihole
+
+# Register module manually, see https://github.com/pi-hole/pi-hole/issues/2129
+- name: Enable fastcgi mod
+  command: lighty-enable-mod fastcgi fastcgi-php
+  notify:
+    - restart lighttpd
+
+- name: Set pihole to update every week
+  become: True
+  replace:
+    path: /etc/cron.d/pihole
+    regexp: '^#(.*updatePihole.*)$'
+    replace: '\1'
+    backup: yes
+
+- name: Reboot
+  shell: sleep 2 && reboot
+  async: 1
+  poll: 0
+  ignore_errors: true
+
+- name: Wait for pi to come back
+  local_action: wait_for host={{ ansible_host }} port=22 state=started delay=10
+  become: false
